@@ -176,17 +176,14 @@ export default function TalentView({
     return "Nano";
   };
 
-  const handleRealTimeRefresh = async () => {
-    console.log("Memperbarui tampilan tabel dari database...");
-
+const handleRealTimeRefresh = async () => {
     try {
       await onRefresh();
-      console.log("Data tabel berhasil disinkronkan dengan database pusat.");
     } catch (err) {
       console.error("Gagal merefresh tabel:", err);
     }
   };
-
+  
   const isFilterActive =
     selectedReligion !== "All" ||
     selectedTier !== "All" ||
