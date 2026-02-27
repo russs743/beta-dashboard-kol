@@ -1,7 +1,33 @@
+/**
+ * ============================================
+ * TALENT VIEW - MAIN COMPONENT
+ * ============================================
+ * 
+ * Main component untuk manajemen talent (KOL/Influencer)
+ * 
+ * Fitur utama:
+ * - Search dan filter talent (by name, source, tier, religion, status)
+ * - Sortable table dengan pagination
+ * - Import/Export Excel
+ * - CRUD operations (Create, Read, Update, Delete)
+ * - Real-time data refresh
+ * - Detail modal view
+ * - Delete confirmation with verification
+ * 
+ * Sub-components:
+ * - TalentRow: Baris data talent di tabel
+ * - FilterSelect: Dropdown filter yang reusable
+ * - TalentDetailModal: Modal untuk view detail talent
+ * 
+ * Dependencies:
+ * - useExcelActions: Hook untuk import/export Excel
+ * - types: Talent interface & helper functions
+ */
+
 "use client";
 import React, { useEffect, useState, useRef } from "react";
 
-import { useExcelActions } from "./useExcelActions";
+import { useExcelActions } from "../useExcelActions";
 import {
   Search,
   Plus,
@@ -21,7 +47,7 @@ import {
 import TalentRow from "./TalentRow";
 import FilterSelect from "./FilterSelect";
 import TalentDetailModal from "./TalentDetailModal";
-import { Talent, getSourceStyle } from "../types";
+import { Talent, getSourceStyle } from "../../types";
 
 interface TalentViewProps {
   searchTerm: string;
@@ -176,14 +202,14 @@ export default function TalentView({
     return "Nano";
   };
 
-const handleRealTimeRefresh = async () => {
+  const handleRealTimeRefresh = async () => {
     try {
       await onRefresh();
     } catch (err) {
       console.error("Gagal merefresh tabel:", err);
     }
   };
-  
+
   const isFilterActive =
     selectedReligion !== "All" ||
     selectedTier !== "All" ||
@@ -332,6 +358,17 @@ const handleRealTimeRefresh = async () => {
             />
           </div>
           <div className="ml-auto flex gap-4">
+            <button
+              onClick={handleRealTimeRefresh}
+              disabled={isLoading}
+              className="flex items-center gap-2 bg-white hover:bg-slate-100 hover:scale-110 text-slate-600 px-4 py-2.5 rounded-xl font-bold text-sm border border-slate-200 shadow-sm transition-all active:scale-95 disabled:opacity-50"
+              title="Refresh Data"
+            >
+              <RefreshCw
+                size={18}
+                className={`${isLoading ? "animate-spin" : ""}`}
+              />
+            </button>
             <div
               className={`relative group transition-opacity duration-300 ${selectedDetail ? "opacity-50 cursor-not-allowed" : ""}`}
             >
@@ -365,17 +402,6 @@ const handleRealTimeRefresh = async () => {
               title="Add New Talent"
             >
               <Plus size={18} />
-            </button>
-            <button
-              onClick={handleRealTimeRefresh}
-              disabled={isLoading}
-              className="flex items-center gap-2 bg-white hover:bg-slate-100 hover:scale-110 text-slate-600 px-4 py-2.5 rounded-xl font-bold text-sm border border-slate-200 shadow-sm transition-all active:scale-95 disabled:opacity-50"
-              title="Refresh Data"
-            >
-              <RefreshCw
-                size={18}
-                className={`${isLoading ? "animate-spin" : ""}`}
-              />
             </button>
           </div>
         </div>

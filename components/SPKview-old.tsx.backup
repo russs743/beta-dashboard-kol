@@ -74,27 +74,99 @@ export default function SPKView({
     acc[`keterangan${n}_3`] = "";
     return acc;
   }, {});
-
+  const resetForm = () => {
+    setEditingId(null);
+    setFormData({
+      first_party_signer: "",
+      first_party_position: "",
+      vendor_name: "",
+      vendor_nik: "",
+      vendor_address: "",
+      vendor_role: "",
+      vendor_company_name: "",
+      brand_name: "",
+      business_type: "",
+      collab_type: "",
+      campaign_start: "",
+      campaign_end: "",
+      campaign_period: "",
+      collab_nature: "Eksklusif",
+      talent_name1: "",
+      talent_name2: "",
+      talent_name3: "",
+      talent_name4: "",
+      talent_name5: "",
+      ...initialSows, // initialSows yang udah lo definisikan di atas
+      competitor1: "",
+      competitor2: "",
+      competitor3: "",
+      competitor4: "",
+      competitor5: "",
+      competitor6: "",
+      competitor7: "",
+      competitor8: "",
+      competitor9: "",
+      competitor10: "",
+      project_fee: "",
+      pph_23: "",
+      grand_total: "",
+      grand_total_words: "",
+      bank_name: "",
+      bank_branch: "",
+      bank_account_number: "",
+      bank_account_name: "",
+      payment_date: "",
+      payment_terms: "14 hari",
+    });
+    setActiveSowCount(1);
+    setActiveTalentCount(1);
+    setActiveCompetitorCount(1);
+    setSowIds([Date.now()]);
+  };
   const filteredAndSortedSPK = propsSpkList
     .filter((item) => {
       const searchTerm = searchQuery.toLowerCase();
+
+      // 1. Logic Search (Teks)
       const matchesSearch =
-        // 1. Cek semua slot talent (1-5)
         item.talent_name1?.toLowerCase().includes(searchTerm) ||
         item.talent_name2?.toLowerCase().includes(searchTerm) ||
         item.talent_name3?.toLowerCase().includes(searchTerm) ||
         item.talent_name4?.toLowerCase().includes(searchTerm) ||
         item.talent_name5?.toLowerCase().includes(searchTerm) ||
-        // 2. Cek variabel cadangan (jika ada data lama)
         (item.talent_name || item.talent)?.toLowerCase().includes(searchTerm) ||
-        // 3. Cek Brand & Nomor SPK
         (item.brand_name || item.brand)?.toLowerCase().includes(searchTerm) ||
         (item.spk_number || item.number)?.toLowerCase().includes(searchTerm);
 
-      return matchesSearch;
+      // 2. Logic Filter Tanggal (Format: "12 Januari 2026")
+      const dateString = item.created_at || item.date || ""; // Cek field mana yang isi tanggal teks
+      const parts = dateString.split(" "); // Pecah jadi ["12", "Januari", "2026"]
+
+      const bulanIndo: { [key: string]: string } = {
+        Januari: "01",
+        Februari: "02",
+        Maret: "03",
+        April: "04",
+        Mei: "05",
+        Juni: "06",
+        Juli: "07",
+        Agustus: "08",
+        September: "09",
+        Oktober: "10",
+        November: "11",
+        Desember: "12",
+      };
+
+      const itemMonth = parts[1] ? bulanIndo[parts[1]] : ""; // Ambil "Januari" -> "01"
+      const itemYear = parts[2] || ""; // Ambil "2026"
+
+      const matchesMonth =
+        selectedMonth === "all" || itemMonth === selectedMonth;
+      const matchesYear = selectedYear === "all" || itemYear === selectedYear;
+
+      return matchesSearch && matchesMonth && matchesYear;
     })
     .sort((a, b) => {
-      // Sort logic tetep aman kalo lo tetep dapet field 'date' atau 'id'
       return sortOrder === "desc" ? b.id - a.id : a.id - b.id;
     });
 
@@ -579,15 +651,15 @@ export default function SPKView({
 
   const availableYears = [
     ...new Set(
-      propsSpkList.map((item) => {
-        if (!item.date) return "";
-        const parts = item.date.split("/"); // Pecah 12/02/2026
-        return parts[2]; // Ambil 2026
-      }),
+      propsSpkList
+        .map((item) => {
+          const dateString = item.created_at || item.date || "";
+          const parts = dateString.split(" ");
+          return parts[2]; // Ambil elemen ke-3 (Tahun)
+        })
+        .filter(Boolean),
     ),
-  ]
-    .filter(Boolean)
-    .sort((a, b) => b.localeCompare(a)); // Urutin tahun terbaru
+  ].sort((a, b) => b.localeCompare(a));
 
   if (isFormOpen) {
     return (
@@ -599,7 +671,9 @@ export default function SPKView({
           >
             <ChevronLeft size={24} />
           </button>
-          <h2 className="text-2xl font-bold text-[#1B3A5B]">Buat SPK Baru</h2>
+          <h2 className="text-2xl font-bold text-[#1B3A5B]">
+            {editingId ? `Edit SPK ${editingId}` : "Buat SPK Baru"}
+          </h2>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -1260,16 +1334,6 @@ export default function SPKView({
           </select>
         </div>
 
-        {/* Tombol Tambah (Action Utama) */}
-        <button
-          onClick={() => {
-            setEditingId(null); // Pastikan reset edit state kalau mau buat baru
-            setIsFormOpen(true);
-          }}
-          className="flex items-center gap-2 bg-[#1B3A5B] text-white px-6 py-3 rounded-2xl font-bold shadow-lg hover:scale-105 transition-all w-full md:w-auto justify-center"
-        >
-          <Plus size={20} />
-        </button>
         <button
           onClick={handleRealTimeRefresh}
           disabled={isLoading}
@@ -1280,6 +1344,15 @@ export default function SPKView({
             size={18}
             className={`${isLoading ? "animate-spin" : ""}`}
           />
+        </button>
+        <button
+          onClick={() => {
+            resetForm();
+            setIsFormOpen(true);
+          }}
+          className="flex items-center gap-2 bg-[#1B3A5B] text-white px-6 py-3 rounded-2xl font-bold shadow-lg hover:scale-105 transition-all w-full md:w-auto justify-center"
+        >
+          <Plus size={20} />
         </button>
       </div>
 
