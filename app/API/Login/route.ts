@@ -1,123 +1,90 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Cache untuk rate limiting (akan reset jika serverless restart)
-const ipCache: Record<string, { attempts: number; lockoutUntil: number }> = {};
-
 export async function POST(request: NextRequest) {
   try {
-    // 1. Validasi LOGIN_URL
-    if (!process.env.LOGIN_URL) {
-      console.error("❌ LOGIN_URL is not defined in environment variables");
+    // 1. Cek apakah URL API sudah di-set di Vercel
+    const loginUrl = process.env.LOGIN_URL;
+    if (!loginUrl) {
       return NextResponse.json(
-        { success: false, message: "Server configuration error: LOGIN_URL not set" },
+        { success: false, message: "LOGIN_URL belum di-set di Environment Variables Vercel" },
         { status: 500 }
       );
     }
 
-    const now = Date.now();
-    
-    // 2. Ambil IP (Gunakan 'as any' untuk menghindari error TS di property .ip)
-    const ip = (request as any).ip || request.headers.get("x-forwarded-for")?.split(",")[0].trim() || "127.0.0.1";
-    
-    // 3. Rate Limiting Logic
-    const userData = ipCache[ip] || { attempts: 0, lockoutUntil: 0 };
-
-    if (userData.lockoutUntil > now) {
-      const retryAfter = Math.ceil((userData.lockoutUntil - now) / 1000);
-      return NextResponse.json(
-        { success: false, message: "Terlalu banyak percobaan. IP Anda diblokir sementara.", retryAfter },
-        { status: 429 }
-      );
-    }
-
     const { username, password } = await request.json();
-    
-    // 4. Fetch ke Backend API
-    console.log(`📡 Attempting login to: ${process.env.LOGIN_URL}`);
-    const res = await fetch(process.env.LOGIN_URL, {
-      method: "POST", 
+
+    // 2. Tembak ke Backend
+    const res = await fetch(loginUrl, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
     });
 
-    // 5. Parse Response JSON
+    // --- STRATEGI SKAKMAT MULAI DI SINI ---
+    
+    // Kita ambil sebagai TEXT dulu, jangan langsung .json()
+    const rawText = await res.text(); 
+    
     let data;
     try {
-      data = await res.json();
+      // Coba ubah teks tadi jadi JSON
+      data = JSON.parse(rawText);
     } catch (parseError) {
-      console.error("❌ Failed to parse response as JSON:", parseError);
-      return NextResponse.json(
-        { success: false, message: "Invalid response from authentication server" },
-        { status: 502 }
-      );
+      // KALAU GAGAL (Artinya isinya HTML error atau teks aneh)
+      console.error("❌ Backend tidak mengirim JSON. Isi asli:", rawText);
+      
+      return NextResponse.json({
+        success: false,
+        message: "Server Backend tidak mengirim data JSON (Mungkin error 404/502/504)",
+        // Kita kirim 150 karakter pertama biar lo bisa liat di Inspect Element (Network Tab)
+        debug_preview: rawText.substring(0, 150), 
+        status_code: res.status
+      }, { status: 502 });
     }
 
-    // 6. Handle Success Response
+    // 3. Jika berhasil dapet JSON, cek status response-nya
     if (res.ok) {
-      delete ipCache[ip];
-
-      // --- SMART TOKEN FINDER ---
-      // Mencari token di berbagai kemungkinan field yang sering dipakai API
+      // Cari token (Smart Token Finder)
       const token = data.token || 
                     data.access_token || 
                     data.data?.token || 
-                    data.data?.access_token ||
-                    data.result?.token;
+                    data.data?.access_token;
 
       if (!token) {
-        console.error("❌ Authentication succeeded but NO TOKEN found in response:", data);
-        return NextResponse.json(
-          { 
-            success: false, 
-            message: "Login berhasil di server, tapi token tidak ditemukan.",
-            debug: process.env.NODE_ENV === "development" ? data : undefined 
-          },
-          { status: 502 }
-        );
+        return NextResponse.json({
+          success: false,
+          message: "Login Berhasil, tapi Token tidak ditemukan di dalam JSON",
+          debug_json: data // Kita intip isi JSON-nya
+        }, { status: 502 });
       }
 
-      console.log("✅ Login successful for:", username);
-      const response = NextResponse.json({ success: true, token: token });
-      
-      // 7. Set Secure Cookie
-      response.cookies.set("auth_token", token, { 
-        httpOnly: true, 
-        secure: process.env.NODE_ENV === "production", // Wajib true di Vercel (HTTPS)
+      // 4. Set Cookie jika token ketemu
+      const response = NextResponse.json({ success: true, token });
+      response.cookies.set("auth_token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
         maxAge: 60 * 60 * 24 // 24 jam
       });
-      
+
       return response;
 
     } else {
-      // 8. Handle Gagal Login (401, dsb)
-      userData.attempts += 1;
-      if (userData.attempts >= 5) {
-        userData.lockoutUntil = now + 15 * 60 * 1000; // Blokir 15 menit
-      }
-      ipCache[ip] = userData;
-
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: data.message || "Username atau password salah", 
-          attempts: userData.attempts 
-        },
-        { status: 401 }
-      );
+      // Jika res.ok FALSE (401 Unauthorized, dsb) tapi dapet JSON
+      return NextResponse.json({
+        success: false,
+        message: data.message || "Username atau Password salah",
+        status_code: res.status
+      }, { status: res.status });
     }
 
   } catch (err: any) {
-    // 9. Global Error Catch
-    console.error("💥 Critical Login Error:", err.message);
-    return NextResponse.json(
-      { 
-        success: false, 
-        message: "Internal Server Error",
-        error: process.env.NODE_ENV === "development" ? err.message : undefined
-      }, 
-      { status: 500 }
-    );
+    console.error("💥 CRITICAL ERROR:", err.message);
+    return NextResponse.json({
+      success: false,
+      message: "Internal Server Error di API Route",
+      error: err.message
+    }, { status: 500 });
   }
 }
