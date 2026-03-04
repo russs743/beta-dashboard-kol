@@ -537,10 +537,9 @@ export default function SPKView({
       const listCompetitorText = activeCompetitorsList.join(", ");
 
       // ===== STEP 3: Collab Nature Text =====
-      const eksklusifText = `<b>Eksklusif.</b> Selama Jangka Waktu Kampanye Pemasaran, Pihak kedua <b>dilarang untuk bekerja sama, mempromosikan, mengeluarkan komentar positif dan/atau terlihat di muka publik menggunakan produk pesaing Merek pada jenis perusahaan yang sama.</b> Dan/atau mengeluarkan komentar positif terhadap barang alternatif atau pengganti dari Merek.`;
+      const eksklusifText = `Eksklusif`;
       const nonEksklusifText =
-        "<b>Non-Eksklusif.</b> Selama Jangka Waktu Kampanye Pemasaran, Talent berhak untuk bekerja sama dengan pihak ketiga manapun. Perjanjian ini tidak membatasi kebebasan Talent dan/atau Pihak Kedua untuk mengulas, memberikan penilaian, dan/atau menyatakan pendapatnya atas produk apapun";
-
+        "Non Eksklusif"
       // ===== STEP 4: Build Payload =====
       const payload: any = {
         // Section I: Company Identity

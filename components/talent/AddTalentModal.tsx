@@ -53,7 +53,7 @@ export default function AddTalentModal({
     tier_ig: "Nano",
     tier_tiktok: "Nano",
     er: "0%",
-    source: "Manual",
+    source: "Artist/Celebrity",
     color: "#1B4D66",
     monthlyImpressions: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     rateCard: "",
